@@ -41,7 +41,7 @@ const artistOptions = [
   { value: "Soodie Yang", label: "Soodie Yang", note: "Black & Grey Realism" },
   { value: "Brianne Thorne", label: "Brianne Thorne", note: "Neo-Traditional/Neo-Japanese" },
   { value: "Atisha Rainey", label: "Atisha Rainey", note: "Neo-Traditional" },
-  { value: "Jordyn Bishop", label: "Jordyn Bishop", note: "Neo-Traditional" },
+  
   { value: "No Preference", label: "No Preference", note: "" },
 ];
 
