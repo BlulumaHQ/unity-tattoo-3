@@ -8,7 +8,7 @@ const ThreadsIcon = ({ size = 18 }: { size?: number }) => (
 );
 
 const artistsCol1 = ["Heather Drew", "Paige McGrath", "Bronson Ramos", "Jesse Kvarnstrom"];
-const artistsCol2 = ["Soodie Yang", "Brianne Throne", "Atisha Rainey", "Jordyn Bishop"];
+const artistsCol2 = ["Soodie Yang", "Brianne Thorne", "Atisha Rainey", "Jordyn Bishop"];
 
 const Footer = () => {
   return (
