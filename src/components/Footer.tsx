@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Instagram, Facebook } from "lucide-react";
+import { Instagram, Facebook, FileSignature } from "lucide-react";
 
 const ThreadsIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -44,6 +44,25 @@ const Footer = () => {
                 {link.label}
               </Link>
             ))}
+            <Link
+              to="/waiver"
+              className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-md text-sm font-medium tracking-wide border transition-all duration-300 hover:scale-105"
+              style={{
+                color: 'hsl(197 85% 42%)',
+                borderColor: 'hsl(197 85% 42% / 0.4)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'hsl(197 85% 42% / 0.1)';
+                e.currentTarget.style.borderColor = 'hsl(197 85% 42% / 0.7)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.borderColor = 'hsl(197 85% 42% / 0.4)';
+              }}
+            >
+              <FileSignature size={14} />
+              Tattoo Waiver
+            </Link>
           </div>
 
           <div className="flex flex-col items-center md:items-start">
