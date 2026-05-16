@@ -11,6 +11,7 @@ import TheShop from "./pages/TheShop";
 import Aftercare from "./pages/Aftercare";
 import Contact from "./pages/Contact";
 import Book from "./pages/Book";
+import Waiver from "./pages/Waiver";
 import GiftCard from "./pages/GiftCard";
 import NotFound from "./pages/NotFound";
 
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/aftercare" element={<Aftercare />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/book" element={<Book />} />
+              <Route path="/waiver" element={<Waiver />} />
               <Route path="/gift-card" element={<GiftCard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
