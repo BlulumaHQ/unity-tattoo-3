@@ -1,10 +1,11 @@
 # Booking photo reliability
-- [ ] Add and test a bounded, read-only storage readiness check before selected-photo uploads.
-- [ ] Investigate the 07:33 live build, named storage host, and documented Formspree attachment fallback.
+- [x] Add and test a bounded, read-only storage readiness check before selected-photo uploads.
+- [x] Investigate the 07:33 live build, named storage host, and documented Formspree attachment fallback.
 - [x] Fix file selection, fail-closed uploads, and separate expiring email links.
 - [x] Verify tests, intercepted preview booking flow, and automatic build result.
 - [x] Compare production booking script with original source.
-- [ ] Confirm and enforce private bucket access, then verify real upload/signing (blocked: hosted storage paused; bucket API cannot obtain managed credentials).
+- [ ] Confirm and enforce private bucket access, then verify real upload/signing (blocked: configured Cloud is paused; configured and named storage hosts fail DNS; explicit resume authorization required).
+- [ ] Verify Formspree native attachment fallback if needed (blocked: account plan, submission-storage setting, and private expiring-link behavior unverified).
 
 # Waiver email confirmation
 - [x] Inspect production waiver endpoint and notification-result handling.
