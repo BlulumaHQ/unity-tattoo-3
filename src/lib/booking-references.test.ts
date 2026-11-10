@@ -1,18 +1,48 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const storage = vi.hoisted(() => ({ upload: vi.fn(), createSignedUrl: vi.fn() }));
+const storage = vi.hoisted(() => ({ list: vi.fn(), upload: vi.fn(), createSignedUrl: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { storage: { from: () => storage } } }));
-import { referenceEmailFields, uploadBookingReferences, validateReferenceFiles } from "./booking-references";
+import { checkBookingStorageAvailability, referenceEmailFields, STORAGE_CHECK_TIMEOUT_MS, uploadBookingReferences, validateReferenceFiles } from "./booking-references";
 
 const photo = (name = "photo.png") => new File(["synthetic image"], name, { type: "image/png" });
 
 beforeEach(() => {
   vi.resetAllMocks();
+  storage.list.mockResolvedValue({ data: [], error: null });
   storage.upload.mockResolvedValue({ data: { path: "synthetic.png" }, error: null });
   storage.createSignedUrl.mockResolvedValue({ data: { signedUrl: "https://example.invalid/signed/photo?token=synthetic" }, error: null });
 });
 
 describe("booking reference safety", () => {
+  it("blocks uploads and notification when storage is unavailable", async () => {
+    storage.list.mockResolvedValue({ data: null, error: { message: "paused" } });
+    const notify = vi.fn();
+    await expect(uploadBookingReferences([photo()], new Map()).then(notify)).rejects.toThrow("Photo storage is currently unavailable");
+    expect(storage.upload).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("bounds an unresponsive storage check to 12 seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      storage.list.mockImplementation(() => new Promise(() => {}));
+      const assertion = expect(checkBookingStorageAvailability()).rejects.toThrow("Photo storage is currently unavailable");
+      expect(STORAGE_CHECK_TIMEOUT_MS).toBe(12000);
+      await vi.advanceTimersByTimeAsync(12000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never enumerates existing photos and skips storage for photo-free bookings", async () => {
+    await uploadBookingReferences([photo()], new Map());
+    expect(storage.list).toHaveBeenCalledWith(expect.stringMatching(/^readiness-/), { limit: 1 });
+    storage.list.mockClear();
+    await expect(uploadBookingReferences([], new Map())).resolves.toEqual([]);
+    expect(storage.list).not.toHaveBeenCalled();
+    expect(referenceEmailFields([]).reference_photo_count).toBe("0");
+  });
   it("rejects more than 3 selected photos instead of silently truncating", () => {
     expect(validateReferenceFiles([photo(), photo(), photo()])).toBeNull();
     expect(validateReferenceFiles([photo(), photo(), photo(), photo()])).not.toBeNull();
@@ -55,6 +85,7 @@ describe("booking reference safety", () => {
   it("sends a separate readable field for every uploaded photo", () => {
     const links = ["https://example.invalid/one", "https://example.invalid/two", "https://example.invalid/three"];
     const fields = referenceEmailFields(links);
+    expect(fields.reference_photo_count).toBe("3");
     expect(fields.reference_photo_1).toBe(links[0]);
     expect(fields.reference_photo_2).toBe(links[1]);
     expect(fields.reference_photo_3).toBe(links[2]);
