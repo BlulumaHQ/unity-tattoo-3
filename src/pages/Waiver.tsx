@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "react-router-dom";
+import { classifyWaiverResult, type WaiverOutcome } from "@/lib/waiver-result";
 
 const BRAND = "#0e8fcb";
 const ENDPOINT = "https://uzdjwpkgldzhnoxjeyrw.supabase.co/functions/v1/submit-waiver";
@@ -174,7 +176,8 @@ const Waiver = () => {
   const [signature, setSignature] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [outcome, setOutcome] = useState<WaiverOutcome | null>(null);
+  const submissionInFlight = useRef(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
@@ -231,7 +234,9 @@ const Waiver = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionInFlight.current || outcome?.saved) return;
     if (!validateStep(4)) return;
+    submissionInFlight.current = true;
     setSubmitting(true);
     setSubmitError(null);
 
@@ -273,31 +278,41 @@ const Waiver = () => {
         body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => ({}));
-      if (res.ok && json?.success === true) {
-        setSubmitted(true);
+      const result = classifyWaiverResult(json);
+      if (result.saved) {
+        setOutcome(result);
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        setSubmitError(json?.error || "Something went wrong. Please try again.");
+        setSubmitError("We could not confirm that your waiver was saved. Please contact the shop to check before submitting again.");
       }
     } catch (err) {
-      setSubmitError("Network error. Please check your connection and try again.");
+      setSubmitError("The connection was interrupted, so we cannot confirm the result. Please contact the shop to check whether your waiver was saved before submitting again.");
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
 
-  if (submitted) {
+  if (outcome?.saved) {
     return (
       <section className="py-32 md:py-40">
         <div className="container mx-auto px-4 max-w-2xl text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             <CheckCircle size={56} className="mx-auto mb-6" style={{ color: BRAND }} />
             <h1 className="text-3xl md:text-4xl font-serif mb-4" style={{ fontFamily: "var(--font-heading)" }}>
-              Thank you
+              {outcome.needsRecovery ? "Waiver saved — follow-up needed" : "Waiver saved"}
             </h1>
             <p className="text-muted-foreground leading-relaxed">
-              Your waiver has been submitted. A copy has been emailed to you.
+              Your waiver has been saved. Please do not submit it again.
             </p>
+            <div className="mt-6 space-y-3 text-sm text-muted-foreground" role={outcome.needsRecovery ? "alert" : "status"}>
+              <p>{outcome.adminEmail === "accepted" ? "The shop notification was accepted for sending; inbox delivery is not confirmed." : outcome.adminEmail === "failed" ? "The email notification to the shop could not be sent." : "The email notification to the shop has not been confirmed."}</p>
+              <p>{outcome.customerEmail === "accepted" ? "Your copy was accepted for sending; check your inbox and spam folder." : outcome.customerEmail === "failed" ? "Your email copy could not be sent." : "Sending your email copy has not been confirmed."}</p>
+              {outcome.emailError && <p>An email problem was reported, even if a message was accepted for sending.</p>}
+              {outcome.pdf !== "accepted" && <p>{outcome.pdf === "failed" ? "Your waiver was saved, but its PDF copy could not be created." : "Creation of your PDF copy has not been confirmed."}</p>}
+              {outcome.needsRecovery && <p>Please contact the shop and tell them your waiver is already saved. Ask them to locate it in Central CMS and arrange a copy or resend the notification. Do not complete another waiver to retry the email.</p>}
+            </div>
+            {outcome.needsRecovery && <Button asChild variant="outline" className="mt-6"><Link to="/contact">Contact the shop</Link></Button>}
           </motion.div>
         </div>
       </section>
