@@ -4,7 +4,8 @@
 - [x] Fix file selection, fail-closed uploads, and separate expiring email links.
 - [x] Verify tests, intercepted preview booking flow, and automatic build result.
 - [x] Compare production booking script with original source.
-- [ ] Confirm and enforce private bucket access, then verify real upload/signing (blocked: configured Cloud is paused; configured and named storage hosts fail DNS; explicit resume authorization required).
+- [x] Verify actual anonymous storage readiness, upload authorization, and existing-object signing without creating objects or bookings.
+- [ ] Align private bucket access with RLS, then verify a real byte upload (blocked: user requested no privacy change; current public SELECT exposes all booking references; non-destructive checks do not upload bytes).
 - [ ] Verify Formspree native attachment fallback if needed (blocked: account plan, submission-storage setting, and private expiring-link behavior unverified).
 
 # Waiver email confirmation
