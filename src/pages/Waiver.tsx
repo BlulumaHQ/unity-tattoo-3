@@ -11,7 +11,7 @@ import { CheckCircle, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 
 const BRAND = "#0e8fcb";
-const ENDPOINT = "https://zeyvzvliesujnbehoctx.supabase.co/functions/v1/submit-waiver";
+const ENDPOINT = "https://uzdjwpkgldzhnoxjeyrw.supabase.co/functions/v1/submit-waiver";
 
 const ARTISTS = [
   "Atisha Rainey", "Brianne Thorne", "Bronson Ramos", "Heather Drew",
