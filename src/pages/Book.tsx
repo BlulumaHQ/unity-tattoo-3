@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadBookingReferences, validateReferenceFiles, referenceEmailFields } from "@/lib/booking-references";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Upload, CheckCircle, Loader2, ArrowLeft, ArrowRight, X } from "lucide-react";
 
 const bookingSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required").max(100),
@@ -58,6 +59,10 @@ const Book = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const uploadedPaths = useRef(new Map<File, string>());
+  const submissionInFlight = useRef(false);
 
   const slugToName: Record<string, string> = {
     "heather-drew": "Heather Drew",
@@ -94,8 +99,11 @@ const Book = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selected = Array.from(e.target.files).slice(0, 3);
-      setFiles(selected);
+      const selected = [...files, ...Array.from(e.target.files)];
+      const error = validateReferenceFiles(selected);
+      setFileError(error);
+      if (!error) setFiles(selected);
+      e.target.value = "";
     }
   };
 
@@ -108,6 +116,7 @@ const Book = () => {
   };
 
   const goNext = async () => {
+    if (step === 2 && fileError) return;
     const fields = step === 1 ? step1Fields : step2Fields;
     const valid = await trigger(fields);
     if (valid) {
@@ -122,23 +131,12 @@ const Book = () => {
   };
 
   const onSubmit = async (data: BookingFormData) => {
+    if (submissionInFlight.current || fileError) return;
+    submissionInFlight.current = true;
     setSubmitting(true);
+    setSubmissionError(null);
     try {
-      const imageUrls: string[] = [];
-      for (const file of files) {
-        const fileName = `${Date.now()}-${file.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("booking-references")
-          .upload(fileName, file);
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          continue;
-        }
-        const { data: urlData } = supabase.storage
-          .from("booking-references")
-          .getPublicUrl(uploadData.path);
-        imageUrls.push(urlData.publicUrl);
-      }
+      const imageUrls = await uploadBookingReferences(files, uploadedPaths.current);
 
       const formspreePayload = {
         first_name: data.firstName,
@@ -156,7 +154,7 @@ const Book = () => {
         preferred_time: data.preferredTime,
         comments: data.additionalComments || "",
         booked_before: data.bookedBefore,
-        reference_image_urls: imageUrls.length > 0 ? imageUrls.join(", ") : "None",
+        ...referenceEmailFields(imageUrls),
       };
 
       const formspreeRes = await fetch("https://formspree.io/f/xzdkapwr", {
@@ -165,7 +163,9 @@ const Book = () => {
         body: JSON.stringify(formspreePayload),
       });
 
-      if (!formspreeRes.ok) throw new Error("Formspree submission failed");
+      if (!formspreeRes.ok) throw new Error("Your booking could not be sent. Your selected photos are still here; please try again.");
+      const notification = await formspreeRes.json();
+      if (notification.ok !== true) throw new Error("The booking service did not confirm your request. Please try again.");
 
       await supabase.from("booking_requests").insert({
         first_name: data.firstName,
@@ -184,15 +184,13 @@ const Book = () => {
         additional_comments: data.additionalComments || null,
         booked_before: data.bookedBefore === "yes",
         reference_image_urls: imageUrls.length > 0 ? imageUrls : null,
-      }).then(({ error }) => {
-        if (error) console.error("DB backup error:", error);
-      });
+      }).then(() => undefined, () => undefined);
 
       setSubmitted(true);
     } catch (err) {
-      console.error("Submission error:", err);
-      alert("Something went wrong. Please try again.");
+      setSubmissionError(err instanceof Error ? err.message : "Your booking could not be sent. Please try again.");
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -407,6 +405,7 @@ const Book = () => {
                   <div className="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/50 hover:bg-muted transition-colors cursor-pointer relative">
                     <input
                       type="file"
+                      aria-label="Reference photos"
                       accept="image/*"
                       multiple
                       onChange={handleFileChange}
@@ -421,6 +420,16 @@ const Book = () => {
                       </p>
                     )}
                   </div>
+                  {files.map((file, index) => (
+                    <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 border-b border-border py-2">
+                      <span className="text-sm break-all">{index + 1}. {file.name}</span>
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Remove reference photo ${index + 1}`} title="Remove photo" onClick={() => {
+                        setFiles((current) => current.filter((_, i) => i !== index));
+                        setFileError(null);
+                      }}><X size={16} /></Button>
+                    </div>
+                  ))}
+                  {fileError && <p role="alert" className="text-destructive text-sm">{fileError}</p>}
                 </fieldset>
 
                 <div className="mt-8 flex gap-3">
@@ -555,6 +564,8 @@ const Book = () => {
 
                 {/* Reassurance + Submit */}
                 <div className="mt-8 space-y-4">
+                  {files.length > 0 && <p className="text-sm text-muted-foreground">{files.length} reference photo{files.length === 1 ? "" : "s"} attached</p>}
+                  {submissionError && <p role="alert" className="text-destructive text-sm">{submissionError}</p>}
                   <p className="text-xs text-muted-foreground text-center leading-relaxed">
                     No payment required. We'll review your request and contact you to confirm details.
                   </p>
@@ -563,6 +574,7 @@ const Book = () => {
                       type="button"
                       variant="outline"
                       onClick={goBack}
+                      disabled={submitting}
                       className="flex-1 py-6 text-sm tracking-[0.15em] uppercase font-semibold"
                       style={{ fontFamily: "var(--font-body)" }}
                     >
