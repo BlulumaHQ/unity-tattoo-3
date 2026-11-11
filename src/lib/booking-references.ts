@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const MAX_REFERENCE_IMAGES = 3;
-export const REFERENCE_LINK_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
+export const REFERENCE_LINK_LIFETIME_SECONDS = 365 * 24 * 60 * 60;
 const BUCKET = "booking-references";
 export const STORAGE_CHECK_TIMEOUT_MS = 12000;
 

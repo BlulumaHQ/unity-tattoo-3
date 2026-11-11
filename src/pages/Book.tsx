@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadBookingReferences, validateReferenceFiles, referenceEmailFields } from "@/lib/booking-references";
+import { uploadBookingReferences, validateReferenceFiles } from "@/lib/booking-references";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -138,34 +138,33 @@ const Book = () => {
     try {
       const imageUrls = await uploadBookingReferences(files, uploadedPaths.current);
 
-      const formspreePayload = {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        email: data.email,
-        phone: data.phone || "",
-        placement: data.placement,
-        cover_up: data.isCoverup,
-        tattoo_size: data.tattooSize,
-        style: data.style,
-        colour_preference: data.colourPreference,
-        description: data.description,
-        preferred_artists: data.preferredArtists.join(", "),
-        preferred_days: data.preferredDays.join(", "),
-        preferred_time: data.preferredTime,
-        comments: data.additionalComments || "",
-        booked_before: data.bookedBefore,
-        ...referenceEmailFields(imageUrls),
-      };
-
-      const formspreeRes = await fetch("https://formspree.io/f/xzdkapwr", {
+      const bookingRes = await fetch("https://uzdjwpkgldzhnoxjeyrw.supabase.co/functions/v1/submit-booking", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(formspreePayload),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          site: "unity-tattoo.com",
+          first_name: data.firstName,
+          last_name: data.lastName,
+          email: data.email,
+          phone: data.phone || "",
+          placement: data.placement,
+          cover_up: data.isCoverup,
+          tattoo_size: data.tattooSize,
+          style: data.style,
+          colour_preference: data.colourPreference,
+          description: data.description,
+          preferred_artists: data.preferredArtists.join(", "),
+          preferred_days: data.preferredDays.join(", "),
+          preferred_time: data.preferredTime,
+          comments: data.additionalComments || "",
+          booked_before: data.bookedBefore,
+          reference_image_urls: imageUrls,
+        }),
       });
-
-      if (!formspreeRes.ok) throw new Error("Your booking could not be sent. Your selected photos are still here; please try again.");
-      const notification = await formspreeRes.json();
-      if (notification.ok !== true) throw new Error("The booking service did not confirm your request. Please try again.");
+      const bookingJson = await bookingRes.json().catch(() => ({}));
+      if (!bookingRes.ok || bookingJson.success !== true) {
+        throw new Error("Your booking could not be sent. Your selected photos are still here; please try again.");
+      }
 
       await supabase.from("booking_requests").insert({
         first_name: data.firstName,
