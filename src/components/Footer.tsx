@@ -90,7 +90,7 @@ const Footer = () => {
       <div className="border-t border-white/10 py-3">
         <p className="text-center text-[11px] text-white/25 tracking-wide">
           © 2026 Unity Tattoo | Web Design by{" "}
-          <a href="https://www.bluluma.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Bluluma</a>
+          <a href="https://sonykundesign.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Sonykun Design</a>
         </p>
       </div>
     </footer>
